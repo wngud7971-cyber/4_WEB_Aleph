@@ -1,0 +1,35 @@
+name: Daily kimchi premium fetch
+
+on:
+  schedule:
+    # 00:05 UTC = 09:05 Asia/Seoul. Adjust if you want a different daily time.
+    - cron: "5 0 * * *"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch and append today's record
+        run: node scripts/fetch_daily.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "daily-fetch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet -- data/records.json; then
+            git add data/records.json
+            git commit -m "chore: daily kimchi premium record $(date -u +%F)"
+            git push
+          else
+            echo "No change to commit."
+          fi
