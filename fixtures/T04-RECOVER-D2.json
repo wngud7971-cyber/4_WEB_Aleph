@@ -1,0 +1,34 @@
+{
+  "_note": "SYNTHETIC TEST FIXTURE — not real market data. Used only to replay the recovery path (T04-C19). The app stamps this payload with the date immediately after the latest stored daily record.",
+  "domestic": {
+    "bitcoin": {
+      "source_url": "https://api.upbit.com/v1/ticker?markets=KRW-BTC,KRW-ETH,KRW-XRP",
+      "price_krw": 142000000
+    },
+    "ethereum": {
+      "source_url": "https://api.upbit.com/v1/ticker?markets=KRW-BTC,KRW-ETH,KRW-XRP",
+      "price_krw": 5100000
+    },
+    "ripple": {
+      "source_url": "https://api.upbit.com/v1/ticker?markets=KRW-BTC,KRW-ETH,KRW-XRP",
+      "price_krw": 930
+    }
+  },
+  "global": {
+    "source_url": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple&vs_currencies=usd,eur,gbp,jpy&include_last_updated_at=true",
+    "prices": {
+      "bitcoin": { "usd": 102000, "eur": 94500, "gbp": 80600, "jpy": 15150000 },
+      "ethereum": { "usd": 3650, "eur": 3380, "gbp": 2880, "jpy": 541000 },
+      "ripple": { "usd": 0.58, "eur": 0.537, "gbp": 0.4565, "jpy": 86 }
+    }
+  },
+  "fx": {
+    "source_url": "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,GBP,JPY,KRW",
+    "rates": {
+      "USD": 1.08,
+      "GBP": 0.855,
+      "JPY": 160.5,
+      "KRW": 1502.0
+    }
+  }
+}

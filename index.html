@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>김치 프리미엄 — 매일 궁금한 값 하나</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;700;900&display=swap");
+
+:root {
+  --ink: #0b1220;
+  --panel: #121b2e;
+  --panel-line: #263450;
+  --text: #ede9e0;
+  --muted: #8b93a7;
+  --up: #e0483e;    /* 국내 관행: 프리미엄(상승) = 빨강 */
+  --down: #3b82c4;  /* 하락 = 파랑 */
+  --gold: #d4a017;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sans: "Noto Sans KR", system-ui, sans-serif;
+}
+
+html[data-theme="light"] {
+  --ink: #f5f6f4;
+  --panel: #ffffff;
+  --panel-line: #d7dbe0;
+  --text: #131a2b;
+  --muted: #5c6472;
+  --up: #c53a30;
+  --down: #2f6fa8;
+  --gold: #a86f0a;
+}
+
+* { box-sizing: border-box; }
+
+.header-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.theme-toggle {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--panel-line);
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.theme-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+header p {
+  color: var(--muted);
+  margin: 0 0 28px;
+  font-size: 0.92rem;
+}
+
+.hero {
+  border-top: 1px solid var(--panel-line);
+  border-bottom: 1px solid var(--panel-line);
+  padding: 28px 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hero .value {
+  font-family: var(--mono);
+  font-size: clamp(2.6rem, 9vw, 4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.hero .value.up { color: var(--up); }
+.hero .value.down { color: var(--down); }
+
+.hero .label {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 6px;
+}
+
+.status {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  border: 1px solid var(--panel-line);
+  white-space: nowrap;
+}
+
+.hero-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--panel-line);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.refresh-btn:hover { border-color: var(--gold); color: var(--gold); }
+.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+.status[data-state="fresh"] { color: #6fcf97; border-color: #2f4a3d; }
+.status[data-state="stale"] { color: var(--gold); border-color: #4a3f22; }
+.status[data-state="error"] { color: var(--up); border-color: #4a2c2a; }
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  margin: 18px 0 8px;
+}
+
+table.ledger th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.76rem;
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+table.ledger td {
+  padding: 9px 8px 9px 0;
+  border-bottom: 1px solid #1a2740;
+  vertical-align: top;
+}
+
+table.ledger a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--panel-line);
+}
+
+.meta-row {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  margin: 14px 0 30px;
+}
+
+.meta-row b { color: var(--text); font-weight: 500; }
+
+section h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 40px 0 10px;
+}
+
+.error-banner {
+  border: 1px solid #4a2c2a;
+  background: #1c1414;
+  color: #f3b4ae;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  margin: 14px 0;
+  display: none;
+}
+.error-banner.show { display: block; }
+
+.retry-btn {
+  font-family: var(--sans);
+  background: var(--gold);
+  color: #241c04;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.retry-btn:hover { filter: brightness(1.08); }
+
+details.sim {
+  margin-top: 46px;
+  border: 1px dashed var(--panel-line);
+  padding: 14px 16px 18px;
+}
+details.sim summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.sim-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sim-buttons button {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--panel-line);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.sim-buttons button:hover { border-color: var(--gold); color: var(--gold); }
+
+.badge-stale {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--gold);
+  border: 1px solid #4a3f22;
+  padding: 1px 6px;
+  margin-left: 8px;
+}
+
+footer {
+  margin-top: 50px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--panel-line);
+  padding-top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* --- fee assumption row --- */
+.fee-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0 4px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.fee-row label { color: var(--text); }
+.fee-row input {
+  width: 70px;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  color: var(--text);
+  font-family: var(--mono);
+  padding: 4px 6px;
+}
+.fee-note { flex-basis: 100%; font-size: 0.74rem; }
+.fee-net {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--gold);
+  margin: 8px 0 4px;
+}
+
+/* --- hub comparison + caveat --- */
+.caveat {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 8px;
+}
+
+/* --- chart --- */
+#chart-wrap { margin: 10px 0 18px; }
+#chart-wrap svg { width: 100%; height: auto; display: block; }
+.chart-line { fill: none; stroke: var(--gold); stroke-width: 2; }
+.chart-zero { stroke: var(--panel-line); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart-dot { fill: var(--gold); }
+.chart-axis-text { fill: var(--muted); font-family: var(--mono); font-size: 9px; }
+.up-text { color: var(--up); }
+.down-text { color: var(--down); }
+
+/* --- coin tabs --- */
+.coin-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.coin-tabs button {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 0.85rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--panel-line);
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.coin-tabs button.active {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.section-sub {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  margin: 14px 0 6px;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin: 4px 0 14px;
+}
+.chart-legend span.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-top">
+      <h1>김치 프리미엄</h1>
+      <button class="theme-toggle" id="theme-toggle" aria-label="테마 전환">라이트</button>
+    </div>
+    <p>업비트(국내) 가격이 CoinGecko(해외) 가격을 원화로 환산한 값보다 몇 % 비싼지, 3개 종목으로 비교합니다.</p>
+  </header>
+
+  <div class="coin-tabs" id="coin-tabs" role="tablist">
+    <button data-asset="bitcoin" class="active" role="tab" aria-selected="true">비트코인</button>
+    <button data-asset="ethereum" role="tab" aria-selected="false">이더리움</button>
+    <button data-asset="ripple" role="tab" aria-selected="false">리플</button>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="value" id="premium-value">—</div>
+      <div class="label" id="hero-label">국내가 대비 해외 환산가 괴리율 (%) · 비트코인</div>
+    </div>
+    <div class="hero-right">
+      <div class="status" id="status-badge" data-state="fresh">조회 중…</div>
+      <button class="refresh-btn" id="refresh-btn">↻ 새로고침</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>종목별 프리미엄 한눈에</h2>
+    <table class="ledger">
+      <thead>
+        <tr><th>종목</th><th>국내가(KRW)</th><th>프리미엄(USD 기준)</th></tr>
+      </thead>
+      <tbody id="compare-body">
+        <tr><td colspan="3">불러오는 중…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="error-banner" id="error-banner"></div>
+  <button class="retry-btn" id="retry-btn" style="display:none">다시 시도</button>
+
+  <div class="fee-row">
+    <label for="fee-input">가정 왕복 수수료(%)</label>
+    <input type="number" id="fee-input" value="0" min="0" step="0.05" />
+    <span class="fee-note">기본값 0% = 원시 괴리율. 실제 거래소·등급별 수수료와 출금비용(고정액)은 사람마다 달라 계산에 강제 반영하지 않고, 입력한 값만큼 뺀 참고치를 아래에 별도 표시합니다.</span>
+  </div>
+  <div class="fee-net" id="fee-net" style="display:none"></div>
+
+  <div class="meta-row">
+    <span>조회 시각: <b id="retrieved-at">—</b></span>
+    <span>기준 시간대: <b>Asia/Seoul (KST, UTC+9)</b></span>
+  </div>
+
+  <section>
+    <h2>원자료 상세 · <span id="section-asset-1">비트코인</span></h2>
+    <table class="ledger">
+      <thead>
+        <tr><th>구분</th><th>값</th><th>단위</th><th>출처</th><th>출처 시각</th></tr>
+      </thead>
+      <tbody id="sources-body">
+        <tr><td colspan="5">불러오는 중…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>해외 허브별 비교 · <span id="section-asset-2">비트코인</span></h2>
+    <table class="ledger">
+      <thead>
+        <tr><th>허브</th><th>BTC 현지가</th><th>원화 환산가</th><th>괴리율</th></tr>
+      </thead>
+      <tbody id="hubs-body">
+        <tr><td colspan="4">불러오는 중…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>일별 기록 (Asia/Seoul 날짜 기준, 하루 한 줄)</h2>
+    <p class="section-sub">전 종목 프리미엄 추이</p>
+    <div id="chart-wrap"></div>
+    <div class="chart-legend" id="chart-legend"></div>
+
+    <p class="section-sub"><span id="section-asset-3">비트코인</span> 상세 기록</p>
+    <table class="ledger">
+      <thead>
+        <tr><th>날짜</th><th>프리미엄</th><th>전일 대비</th><th>조회 시각</th></tr>
+      </thead>
+      <tbody id="history-body">
+        <tr><td colspan="4">불러오는 중…</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <details class="sim">
+    <summary>검수용 · 합성 실패 재생 (실제 API를 건드리지 않는 합성 시험값)</summary>
+    <div class="sim-buttons">
+      <button data-sim="slow">느린 응답</button>
+      <button data-sim="401">401 거절</button>
+      <button data-sim="403">403 거절</button>
+      <button data-sim="ratelimit">호출 제한</button>
+      <button data-sim="offline">오프라인</button>
+      <button data-sim="badformat">응답 형식 변경</button>
+      <button data-sim="clear">정상으로 되돌리기</button>
+    </div>
+  </details>
+
+  <footer>
+    데이터: <a href="https://api.upbit.com/v1/ticker?markets=KRW-BTC" style="color:inherit">Upbit</a>,
+    <a href="https://www.coingecko.com/en/api" style="color:inherit">CoinGecko</a>,
+    <a href="https://www.frankfurter.dev" style="color:inherit">Frankfurter(ECB)</a> — 모두 인증 없이 호출 가능한 공개 API.
+    개인정보를 수집하지 않습니다.
+  </footer>
+
+</div>
+<script>
+// app.js — no build step, plain browser JS.
+
+const TIMEZONE = "Asia/Seoul";
+
+const ASSETS = [
+  { id: "bitcoin", market: "KRW-BTC", label: "비트코인", color: "#d4a017" },
+  { id: "ethereum", market: "KRW-ETH", label: "이더리움", color: "#4fb3a9" },
+  { id: "ripple", market: "KRW-XRP", label: "리플", color: "#8a7fd1" },
+];
+const UPBIT_MARKETS = ASSETS.map((a) => a.market).join(",");
+const CG_IDS = ASSETS.map((a) => a.id).join(",");
+
+const HUBS = [
+  { key: "usd", label: "뉴욕", currency: "USD" },
+  { key: "eur", label: "프랑크푸르트", currency: "EUR" },
+  { key: "gbp", label: "런던", currency: "GBP" },
+  { key: "jpy", label: "도쿄", currency: "JPY" },
+];
+const PRIMARY_HUB = "usd"; // "김치 프리미엄"의 표준 기준 통화
+
+let selectedAsset = "bitcoin";
+
+const els = {
+  value: document.getElementById("premium-value"),
+  heroLabel: document.getElementById("hero-label"),
+  status: document.getElementById("status-badge"),
+  refreshBtn: document.getElementById("refresh-btn"),
+  themeToggle: document.getElementById("theme-toggle"),
+  errorBanner: document.getElementById("error-banner"),
+  retryBtn: document.getElementById("retry-btn"),
+  retrievedAt: document.getElementById("retrieved-at"),
+  compareBody: document.getElementById("compare-body"),
+  sourcesBody: document.getElementById("sources-body"),
+  hubsBody: document.getElementById("hubs-body"),
+  historyBody: document.getElementById("history-body"),
+  chartWrap: document.getElementById("chart-wrap"),
+  chartLegend: document.getElementById("chart-legend"),
+  feeInput: document.getElementById("fee-input"),
+  feeNet: document.getElementById("fee-net"),
+  coinTabs: document.getElementById("coin-tabs"),
+  sectionAsset1: document.getElementById("section-asset-1"),
+  sectionAsset2: document.getElementById("section-asset-2"),
+  sectionAsset3: document.getElementById("section-asset-3"),
+};
+
+let lastGoodSnapshot = null; // { retrieved_at, assets: { <id>: {...} } } — keeps last success visible during failures (T04-C17)
+
+// ---------- formatting helpers ----------
+
+function fmtSeoulTime(isoOrDateString) {
+  if (!isoOrDateString) return "—";
+  const d = new Date(isoOrDateString);
+  if (Number.isNaN(d.getTime())) return isoOrDateString; // e.g. plain "YYYY-MM-DD" from Frankfurter
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: TIMEZONE,
+    dateStyle: "medium",
+    timeStyle: "medium",
+  }).format(d);
+}
+
+function fmtNumber(n, digits = 0) {
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  }).format(n);
+}
+
+function pctStr(n) {
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+}
+
+function assetLabel(id) {
+  return ASSETS.find((a) => a.id === id)?.label || id;
+}
+
+// ---------- live fetch (real, key-less public APIs) ----------
+
+async function fetchJson(url, { timeoutMs = 8000 } = {}) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.httpStatus = res.status;
+      throw err;
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Given one asset's CoinGecko multi-currency prices + Frankfurter's
+// EUR-based rates, build one row per hub with a KRW-normalized implied
+// price and premium.
+function buildHubs(cgPrices, cgObservedAt, fr) {
+  return HUBS.map((hub) => {
+    const price = cgPrices[hub.key];
+    // Frankfurter rates are "units of X per 1 EUR" (base=EUR).
+    // KRW per 1 unit of hub currency = rates.KRW / rates.<hub currency>,
+    // except EUR itself, where rates.KRW already IS KRW-per-1-EUR.
+    const krwPerUnit = hub.currency === "EUR" ? fr.rates.KRW : fr.rates.KRW / fr.rates[hub.currency];
+    const impliedKrw = price * krwPerUnit;
+    return {
+      ...hub,
+      price,
+      krwPerUnit,
+      impliedKrw,
+      source_observed_at: cgObservedAt,
+      fx_observed_at: fr.date,
+    };
+  });
+}
+
+function premiumVsHub(domesticKrw, hub) {
+  return ((domesticKrw - hub.impliedKrw) / hub.impliedKrw) * 100;
+}
+
+function buildAssetSnapshot(domesticTicker, cgAssetPrices, cgObservedAt, fr, upbitUrl, cgUrl) {
+  const domestic = {
+    source: "Upbit",
+    source_url: upbitUrl,
+    price_krw: domesticTicker.trade_price,
+    unit: "KRW",
+    source_observed_at: new Date(domesticTicker.trade_timestamp).toISOString(),
+  };
+  const hubs = buildHubs(cgAssetPrices, cgObservedAt, fr);
+  const primary = hubs.find((h) => h.key === PRIMARY_HUB);
+  const premium_pct = premiumVsHub(domestic.price_krw, primary);
+  return {
+    domestic,
+    global: { source: "CoinGecko", source_url: cgUrl, unit: "USD (외 3개 통화)", source_observed_at: cgObservedAt },
+    fx: { source: "Frankfurter (ECB)", source_url: "", unit: "EUR 기준 교차환율", source_observed_at: fr.date },
+    hubs,
+    premium_pct,
+  };
+}
+
+async function fetchLiveSnapshot() {
+  const upbitUrl = `https://api.upbit.com/v1/ticker?markets=${UPBIT_MARKETS}`;
+  const tickers = await fetchJson(upbitUrl);
+  const tickerByMarket = Object.fromEntries(tickers.map((t) => [t.market, t]));
+
+  const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${CG_IDS}&vs_currencies=usd,eur,gbp,jpy&include_last_updated_at=true`;
+  const cg = await fetchJson(cgUrl);
+
+  const frUrl = "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,GBP,JPY,KRW";
+  const fr = await fetchJson(frUrl);
+
+  const retrieved_at = new Date().toISOString();
+  const assets = {};
+  for (const a of ASSETS) {
+    const cgObservedAt = new Date(cg[a.id].last_updated_at * 1000).toISOString();
+    assets[a.id] = buildAssetSnapshot(tickerByMarket[a.market], cg[a.id], cgObservedAt, fr, upbitUrl, cgUrl);
+    assets[a.id].fx.source_url = frUrl;
+  }
+
+  return { retrieved_at, assets };
+}
+
+// ---------- rendering ----------
+
+function currentFeePct() {
+  const v = parseFloat(els.feeInput.value);
+  return Number.isFinite(v) ? v : 0;
+}
+
+function renderFeeNet(pct) {
+  const fee = currentFeePct();
+  if (fee <= 0) {
+    els.feeNet.style.display = "none";
+    return;
+  }
+  const net = pct - fee;
+  els.feeNet.style.display = "block";
+  els.feeNet.textContent = `가정 수수료 ${fee.toFixed(2)}% 반영 후 참고치: ${pctStr(net)}`;
+}
+
+function renderCompareTable(snap) {
+  els.compareBody.innerHTML = "";
+  for (const a of ASSETS) {
+    const asset = snap.assets[a.id];
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${a.label}</td><td>${fmtNumber(asset.domestic.price_krw)}</td><td class="${asset.premium_pct >= 0 ? "up-text" : "down-text"}">${pctStr(asset.premium_pct)}</td>`;
+    els.compareBody.appendChild(tr);
+  }
+}
+
+function renderSnapshot(snap, { stale = false } = {}) {
+  const asset = snap.assets[selectedAsset];
+  const pct = asset.premium_pct;
+  els.value.textContent = pctStr(pct);
+  els.value.className = "value " + (pct >= 0 ? "up" : "down");
+  els.heroLabel.textContent = `국내가 대비 해외 환산가 괴리율 (%) · ${assetLabel(selectedAsset)}`;
+  els.retrievedAt.textContent = fmtSeoulTime(snap.retrieved_at) + (stale ? " (지연됨)" : "");
+  renderFeeNet(pct);
+  renderCompareTable(snap);
+
+  els.sourcesBody.innerHTML = "";
+  const rows = [
+    ["국내(Upbit)", fmtNumber(asset.domestic.price_krw), asset.domestic.unit, asset.domestic.source_url, asset.domestic.source_observed_at],
+    ["해외(CoinGecko, 4통화)", "표 참고 ↓", asset.global.unit, asset.global.source_url, asset.global.source_observed_at],
+    ["환율(Frankfurter)", "표 참고 ↓", asset.fx.unit, asset.fx.source_url, asset.fx.source_observed_at],
+  ];
+  for (const [label, val, unit, url, ts] of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${label}</td><td>${val}</td><td>${unit}</td><td><a href="${url}" target="_blank" rel="noopener">링크</a></td><td>${fmtSeoulTime(ts)}</td>`;
+    els.sourcesBody.appendChild(tr);
+  }
+
+  els.hubsBody.innerHTML = "";
+  for (const hub of asset.hubs) {
+    const prem = premiumVsHub(asset.domestic.price_krw, hub);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${hub.label} (${hub.currency})</td><td>${fmtNumber(hub.price, 2)}</td><td>${fmtNumber(hub.impliedKrw)} KRW</td><td class="${prem >= 0 ? "up-text" : "down-text"}">${pctStr(prem)}</td>`;
+    els.hubsBody.appendChild(tr);
+  }
+
+  const label = assetLabel(selectedAsset);
+  els.sectionAsset1.textContent = label;
+  els.sectionAsset2.textContent = label;
+  els.sectionAsset3.textContent = label;
+}
+
+function setStatus(state, label) {
+  els.status.dataset.state = state;
+  els.status.textContent = label;
+}
+
+function showError(message, retryable = true) {
+  els.errorBanner.textContent = message;
+  els.errorBanner.classList.add("show");
+  els.retryBtn.style.display = retryable ? "inline-block" : "none";
+}
+
+function clearError() {
+  els.errorBanner.classList.remove("show");
+  els.errorBanner.textContent = "";
+  els.retryBtn.style.display = "none";
+}
+
+// ---------- history (data/records.json, updated daily by GitHub Actions) ----------
+
+let demoExtraRecords = []; // in-memory only; used solely by the recovery replay demo, never written to records.json
+
+async function loadHistory() {
+  let records = [];
+  try {
+    const res = await fetch("data/records.json", { cache: "no-store" });
+    records = await res.json();
+  } catch {
+    records = [];
+  }
+  return [...records, ...demoExtraRecords].sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+function renderLegend() {
+  els.chartLegend.innerHTML = ASSETS.map(
+    (a) => `<span><span class="swatch" style="background:${a.color}"></span>${a.label}</span>`
+  ).join("");
+}
+
+function renderChart(records) {
+  if (records.length < 2) {
+    els.chartWrap.innerHTML = `<p class="caveat">기록이 2건 이상 쌓이면 추이 그래프가 표시됩니다.</p>`;
+    return;
+  }
+  const w = 680, h = 160, pad = 24;
+  const allValues = records.flatMap((r) => ASSETS.map((a) => r.assets?.[a.id]?.premium_pct).filter((v) => v != null));
+  const min = Math.min(...allValues, 0);
+  const max = Math.max(...allValues, 0);
+  const range = max - min || 1;
+  const x = (i) => pad + (i * (w - pad * 2)) / (records.length - 1);
+  const y = (v) => h - pad - ((v - min) / range) * (h - pad * 2);
+  const zeroY = y(0);
+
+  let lines = "";
+  for (const a of ASSETS) {
+    const vals = records.map((r) => r.assets?.[a.id]?.premium_pct).filter((v) => v != null);
+    if (vals.length < 2) continue;
+    const points = records
+      .map((r, i) => (r.assets?.[a.id] ? `${x(i)},${y(r.assets[a.id].premium_pct)}` : null))
+      .filter(Boolean)
+      .join(" ");
+    const dots = records
+      .map((r, i) => (r.assets?.[a.id] ? `<circle class="chart-dot" cx="${x(i)}" cy="${y(r.assets[a.id].premium_pct)}" r="2.5" fill="${a.color}"></circle>` : ""))
+      .join("");
+    lines += `<polyline class="chart-line" style="stroke:${a.color}" points="${points}" />${dots}`;
+  }
+
+  const firstLabel = records[0].date;
+  const lastLabel = records[records.length - 1].date;
+
+  els.chartWrap.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="종목별 일별 프리미엄 추이">
+      <line class="chart-zero" x1="${pad}" y1="${zeroY}" x2="${w - pad}" y2="${zeroY}" />
+      ${lines}
+      <text class="chart-axis-text" x="${pad}" y="${h - 6}">${firstLabel}</text>
+      <text class="chart-axis-text" x="${w - pad}" y="${h - 6}" text-anchor="end">${lastLabel}</text>
+    </svg>
+  `;
+  renderLegend();
+}
+
+async function renderHistory() {
+  const records = await loadHistory();
+  els.historyBody.innerHTML = "";
+  if (records.length === 0) {
+    els.historyBody.innerHTML = `<tr><td colspan="4">아직 기록이 없습니다. 첫 GitHub Actions 실행 후 표시됩니다.</td></tr>`;
+    renderChart([]);
+    return;
+  }
+  records.forEach((r, i) => {
+    const cur = r.assets?.[selectedAsset];
+    if (!cur) return;
+    const prevRecord = records[i - 1];
+    const prev = prevRecord?.assets?.[selectedAsset];
+    let diffText = "—";
+    if (prev) {
+      const diff = cur.premium_pct - prev.premium_pct;
+      diffText = `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%p`;
+    }
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.date}${r._synthetic ? ' <span class="badge-stale">SYNTHETIC</span>' : ""}</td><td>${pctStr(cur.premium_pct)}</td><td>${diffText}</td><td>${fmtSeoulTime(r.retrieved_at)}</td>`;
+    els.historyBody.appendChild(tr);
+  });
+  renderChart(records);
+}
+
+// ---------- normal load ----------
+
+async function loadLive() {
+  els.refreshBtn.disabled = true;
+  setStatus("fresh", "조회 중…");
+  clearError();
+  try {
+    const snap = await fetchLiveSnapshot();
+    lastGoodSnapshot = snap;
+    renderSnapshot(snap);
+    setStatus("fresh", "fresh · error_code: none");
+  } catch (err) {
+    handleFailure({ kind: "real", error: err });
+  }
+  renderHistory();
+  els.refreshBtn.disabled = false;
+}
+
+function handleFailure({ kind, error }) {
+  if (lastGoodSnapshot) renderSnapshot(lastGoodSnapshot, { stale: true });
+  setStatus("stale", "stale · 마지막 정상값 표시 중");
+
+  const messages = {
+    slow: ["timeout", "외부 응답이 지연되어 시간 초과되었습니다."],
+    401: ["unauthorized", "외부 원천이 인증을 거절했습니다 (401)."],
+    403: ["forbidden", "외부 원천이 접근을 거절했습니다 (403)."],
+    ratelimit: ["rate_limited", "외부 원천의 호출 제한에 도달했습니다 (429)."],
+    offline: ["offline", "네트워크에 연결할 수 없습니다."],
+    badformat: ["bad_format", "응답 형식이 예상과 달라 해석할 수 없습니다."],
+    real: ["fetch_failed", `실시간 조회에 실패했습니다: ${error?.message || "알 수 없는 오류"}`],
+  };
+  const [code, msg] = messages[kind] || messages.real;
+  setStatus("error", `error · error_code: ${code}`);
+  showError(msg, true);
+}
+
+async function recover() {
+  clearError();
+  const fixture = await (await fetch("fixtures/T04-RECOVER-D2.json")).json();
+
+  const records = await loadHistory();
+  const last = records[records.length - 1];
+  const nextDate = new Date(last ? `${last.date}T00:00:00+09:00` : new Date());
+  if (last) nextDate.setDate(nextDate.getDate() + 1);
+  const nextDateStr = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(nextDate);
+
+  const now = new Date().toISOString();
+  const fr = { rates: fixture.fx.rates, date: nextDateStr };
+  const assets = {};
+  for (const a of ASSETS) {
+    const domesticTicker = { trade_price: fixture.domestic[a.id].price_krw, trade_timestamp: Date.now() };
+    assets[a.id] = buildAssetSnapshot(
+      domesticTicker,
+      fixture.global.prices[a.id],
+      now,
+      fr,
+      fixture.domestic[a.id].source_url,
+      fixture.global.source_url
+    );
+    assets[a.id].domestic.source = "Upbit (synthetic replay)";
+    assets[a.id].global.source = "CoinGecko (synthetic replay)";
+    assets[a.id].fx.source = "Frankfurter (synthetic replay)";
+    assets[a.id].fx.source_url = fixture.fx.source_url;
+  }
+
+  const snap = { retrieved_at: now, assets };
+  lastGoodSnapshot = snap;
+  renderSnapshot(snap);
+  setStatus("fresh", "fresh · error_code: none");
+
+  const recordAssets = {};
+  for (const a of ASSETS) {
+    recordAssets[a.id] = { premium_pct: Number(assets[a.id].premium_pct.toFixed(4)) };
+  }
+  demoExtraRecords.push({
+    date: nextDateStr,
+    retrieved_at: now,
+    assets: recordAssets,
+    _synthetic: true,
+  });
+  renderHistory();
+}
+
+// ---------- coin tabs ----------
+
+els.coinTabs.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-asset]");
+  if (!btn) return;
+  selectedAsset = btn.dataset.asset;
+  els.coinTabs.querySelectorAll("button").forEach((b) => {
+    const active = b === btn;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", String(active));
+  });
+  if (lastGoodSnapshot) renderSnapshot(lastGoodSnapshot);
+  renderHistory();
+});
+
+// ---------- synthetic failure controls ----------
+
+document.querySelectorAll(".sim-buttons button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const kind = btn.dataset.sim;
+    if (kind === "clear") {
+      loadLive();
+      return;
+    }
+    handleFailure({ kind });
+  });
+});
+
+els.retryBtn.addEventListener("click", recover);
+els.feeInput.addEventListener("input", () => {
+  if (lastGoodSnapshot) renderFeeNet(lastGoodSnapshot.assets[selectedAsset].premium_pct);
+});
+
+// ---------- theme toggle ----------
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  els.themeToggle.textContent = theme === "light" ? "다크" : "라이트";
+}
+
+els.themeToggle.addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  applyTheme(current === "light" ? "dark" : "light");
+});
+
+applyTheme("dark"); // 기본값: 다크(티커 느낌). 버튼으로 라이트 전환 가능.
+
+// ---------- boot ----------
+
+els.refreshBtn.addEventListener("click", loadLive);
+loadLive();
+
+</script>
+</body>
+</html>
