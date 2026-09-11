@@ -116,8 +116,23 @@ header p {
 
 .hero-right {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.hero-right-top {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.refresh-note {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: right;
+  max-width: 220px;
 }
 
 .refresh-btn {
@@ -373,8 +388,11 @@ footer {
       <div class="label" id="hero-label">국내가 대비 해외 환산가 괴리율 (%) · 비트코인</div>
     </div>
     <div class="hero-right">
-      <div class="status" id="status-badge" data-state="fresh">조회 중…</div>
-      <button class="refresh-btn" id="refresh-btn">↻ 새로고침</button>
+      <div class="hero-right-top">
+        <div class="status" id="status-badge" data-state="fresh">조회 중…</div>
+        <button class="refresh-btn" id="refresh-btn">↻ 새로고침</button>
+      </div>
+      <div class="refresh-note">과도한 새로고침 방지를 위해 10초 내 재조회는 캐시된 값을 보여줍니다.</div>
     </div>
   </div>
 
@@ -800,6 +818,31 @@ async function renderHistory() {
 
 // ---------- normal load ----------
 
+const CACHE_KEY = "kp_last_snapshot_v1";
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(snapshot) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), snapshot }));
+  } catch {
+    // localStorage unavailable (private mode 등) — 캐시 없이 동작, 문제 없음
+  }
+}
+
+function cooldownRemainingMs() {
+  const cache = readCache();
+  if (!cache) return 0;
+  return Math.max(0, REFRESH_COOLDOWN_MS - (Date.now() - cache.ts));
+}
+
 async function loadLive() {
   els.refreshBtn.disabled = true;
   setStatus("fresh", "조회 중…");
@@ -809,6 +852,7 @@ async function loadLive() {
     lastGoodSnapshot = snap;
     renderSnapshot(snap);
     setStatus("fresh", "fresh · error_code: none");
+    writeCache(snap);
   } catch (err) {
     handleFailure({ kind: "real", error: err });
   }
@@ -930,8 +974,47 @@ applyTheme("dark"); // 기본값: 다크(티커 느낌). 버튼으로 라이트 
 
 // ---------- boot ----------
 
-els.refreshBtn.addEventListener("click", loadLive);
-loadLive();
+const REFRESH_COOLDOWN_MS = 10000; // 무료 공개 API(특히 CoinGecko)의 분당 호출 제한을 넘지 않기 위한 최소 간격
+let cooldownTimer = null;
+
+function startCooldown(startMs = REFRESH_COOLDOWN_MS) {
+  let remaining = Math.ceil(startMs / 1000);
+  if (remaining <= 0) return;
+  els.refreshBtn.disabled = true;
+  els.refreshBtn.textContent = `↻ ${remaining}초 후 가능`;
+  clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(cooldownTimer);
+      els.refreshBtn.disabled = false;
+      els.refreshBtn.textContent = "↻ 새로고침";
+    } else {
+      els.refreshBtn.textContent = `↻ ${remaining}초 후 가능`;
+    }
+  }, 1000);
+}
+
+els.refreshBtn.addEventListener("click", async () => {
+  await loadLive();
+  startCooldown();
+});
+
+// 부팅 시: 직전 새로고침(F5 포함)이 쿨다운 이내라면 실제 재조회 대신
+// localStorage에 저장된 마지막 값을 그대로 보여준다 — 브라우저 새로고침을
+// 짧은 시간에 반복해도 외부 API가 매번 호출되지 않도록 막는 장치.
+const cachedRemaining = cooldownRemainingMs();
+if (cachedRemaining > 0) {
+  const cache = readCache();
+  lastGoodSnapshot = cache.snapshot;
+  renderSnapshot(cache.snapshot);
+  setStatus("fresh", "fresh · error_code: none (캐시된 값, 과도한 새로고침 방지)");
+  renderHistory();
+  startCooldown(cachedRemaining);
+} else {
+  loadLive().then(() => startCooldown());
+}
+
 
 </script>
 </body>
