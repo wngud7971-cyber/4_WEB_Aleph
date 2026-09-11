@@ -317,6 +317,15 @@ footer {
 .up-text { color: var(--up); }
 .down-text { color: var(--down); }
 
+tr.selected-row { background: rgba(212, 160, 23, 0.08); }
+.badge-selected {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 1px 5px;
+}
+
 /* --- coin tabs --- */
 .coin-tabs {
   display: flex;
@@ -669,8 +678,10 @@ function renderCompareTable(snap) {
   els.compareBody.innerHTML = "";
   for (const a of ASSETS) {
     const asset = snap.assets[a.id];
+    const isSelected = a.id === selectedAsset;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${a.label}</td><td>${fmtNumber(asset.domestic.price_krw)}</td><td class="${asset.premium_pct >= 0 ? "up-text" : "down-text"}">${pctStr(asset.premium_pct)}</td>`;
+    if (isSelected) tr.className = "selected-row";
+    tr.innerHTML = `<td>${a.label}${isSelected ? ' <span class="badge-selected">선택됨</span>' : ""}</td><td>${fmtNumber(asset.domestic.price_krw)}</td><td class="${asset.premium_pct >= 0 ? "up-text" : "down-text"}">${pctStr(asset.premium_pct)}</td>`;
     els.compareBody.appendChild(tr);
   }
 }
@@ -756,12 +767,21 @@ function renderChart(records) {
   }
   const w = 680, h = 160, pad = 24;
   const allValues = records.flatMap((r) => ASSETS.map((a) => r.assets?.[a.id]?.premium_pct).filter((v) => v != null));
-  const min = Math.min(...allValues, 0);
-  const max = Math.max(...allValues, 0);
-  const range = max - min || 1;
+  let min = Math.min(...allValues);
+  let max = Math.max(...allValues);
+  if (min === max) {
+    // 값이 전부 동일하면 임의로 여유를 둬서 평평한 선이라도 위치가 보이게 함
+    min -= 0.5;
+    max += 0.5;
+  } else {
+    const padAmount = (max - min) * 0.2; // 실제 변동폭 기준으로 확대(줌인) — 작은 변화도 보이도록
+    min -= padAmount;
+    max += padAmount;
+  }
+  const range = max - min;
+  const showZeroLine = min <= 0 && max >= 0;
   const x = (i) => pad + (i * (w - pad * 2)) / (records.length - 1);
   const y = (v) => h - pad - ((v - min) / range) * (h - pad * 2);
-  const zeroY = y(0);
 
   let lines = "";
   for (const a of ASSETS) {
@@ -779,11 +799,16 @@ function renderChart(records) {
 
   const firstLabel = records[0].date;
   const lastLabel = records[records.length - 1].date;
+  const zeroLine = showZeroLine
+    ? `<line class="chart-zero" x1="${pad}" y1="${y(0)}" x2="${w - pad}" y2="${y(0)}" />`
+    : "";
 
   els.chartWrap.innerHTML = `
     <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="종목별 일별 프리미엄 추이">
-      <line class="chart-zero" x1="${pad}" y1="${zeroY}" x2="${w - pad}" y2="${zeroY}" />
+      ${zeroLine}
       ${lines}
+      <text class="chart-axis-text" x="${pad}" y="14">${max.toFixed(2)}%</text>
+      <text class="chart-axis-text" x="${pad}" y="${h - pad + 2}">${min.toFixed(2)}%</text>
       <text class="chart-axis-text" x="${pad}" y="${h - 6}">${firstLabel}</text>
       <text class="chart-axis-text" x="${w - pad}" y="${h - 6}" text-anchor="end">${lastLabel}</text>
     </svg>
