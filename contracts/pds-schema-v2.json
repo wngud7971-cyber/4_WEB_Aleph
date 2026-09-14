@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "pds-schema-v2",
+  "description": "플랜두씨 다이어리 1 - 최종 데이터베이스 계약",
+  "dateRules": {
+    "timezone": "Asia/Seoul",
+    "dateOnlyFields": {
+      "format": "YYYY-MM-DD",
+      "fields": ["Plan.periodStart", "Plan.periodEnd", "Todo.dueDate"],
+      "note": "시간대 계산 실수를 막기 위해 날짜만 있는 값은 항상 문자열로 저장한다. '오늘'과 비교하는 지연 판정은 Asia/Seoul 기준 오늘 날짜 문자열과 사전식 비교로 계산한다."
+    },
+    "timestampFields": {
+      "format": "ISO-8601 UTC (DateTime)",
+      "fields": [
+        "Plan.createdAt", "Plan.updatedAt",
+        "PlanRevision.capturedAt",
+        "Todo.completedAt", "Todo.deletedAt", "Todo.createdAt", "Todo.updatedAt",
+        "ExecutionLog.startedAt", "ExecutionLog.endedAt", "ExecutionLog.createdAt",
+        "CompletionEvent.createdAt",
+        "Insight.createdAt"
+      ],
+      "note": "저장은 UTC로 하고, 화면 표시에서만 Asia/Seoul로 변환한다."
+    }
+  },
+  "tables": [
+    {
+      "name": "Plan",
+      "purpose": "계획 (카드1)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "title", "type": "string" },
+        { "name": "periodStart", "type": "string(date)" },
+        { "name": "periodEnd", "type": "string(date)" },
+        { "name": "priority", "type": "string" },
+        { "name": "successCriteria", "type": "string" },
+        { "name": "estimatedHours", "type": "float" },
+        { "name": "createdAt", "type": "datetime" },
+        { "name": "updatedAt", "type": "datetime" }
+      ]
+    },
+    {
+      "name": "PlanRevision",
+      "purpose": "계획을 고치기 전 값의 스냅샷 (T06-C08)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "planId", "type": "string", "fk": "Plan.id" },
+        { "name": "title", "type": "string" },
+        { "name": "periodStart", "type": "string(date)" },
+        { "name": "periodEnd", "type": "string(date)" },
+        { "name": "priority", "type": "string" },
+        { "name": "successCriteria", "type": "string" },
+        { "name": "estimatedHours", "type": "float" },
+        { "name": "capturedAt", "type": "datetime" }
+      ],
+      "writeRule": "Plan.update 직전에 항상 현재 값을 스냅샷으로 insert 한다."
+    },
+    {
+      "name": "Todo",
+      "purpose": "할 일 (카드2)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "planId", "type": "string", "fk": "Plan.id" },
+        { "name": "title", "type": "string" },
+        { "name": "content", "type": "string|null" },
+        { "name": "dueDate", "type": "string(date)|null" },
+        { "name": "priority", "type": "string" },
+        { "name": "tags", "type": "string(csv)" },
+        { "name": "estimatedMinutes", "type": "float" },
+        { "name": "status", "type": "enum(todo,done)" },
+        { "name": "completedAt", "type": "datetime|null" },
+        { "name": "deletedAt", "type": "datetime|null", "note": "소프트 삭제 - null이면 살아있는 할 일" },
+        { "name": "createdAt", "type": "datetime" },
+        { "name": "updatedAt", "type": "datetime" }
+      ]
+    },
+    {
+      "name": "CompletionEvent",
+      "purpose": "완료/되돌리기 전환 이력, 중복 방지 확인용 (카드3)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "todoId", "type": "string", "fk": "Todo.id" },
+        { "name": "action", "type": "enum(complete,uncomplete)" },
+        { "name": "createdAt", "type": "datetime" }
+      ],
+      "writeRule": "Todo.status를 조건부(WHERE status = 이전 상태)로 원자적 업데이트해서 실제로 바뀐 경우(count=1)에만 insert 한다. 이중 클릭 시 두 번째 요청은 count=0 이라 기록되지 않는다."
+    },
+    {
+      "name": "ExecutionLog",
+      "purpose": "실제로 한 일 기록 (카드3)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "todoId", "type": "string", "fk": "Todo.id" },
+        { "name": "startedAt", "type": "datetime" },
+        { "name": "endedAt", "type": "datetime" },
+        { "name": "actualMinutes", "type": "float" },
+        { "name": "blockerReason", "type": "string|null" },
+        { "name": "createdAt", "type": "datetime" }
+      ],
+      "writeRule": "Plan/Todo의 계획 값(estimatedMinutes 등)은 절대 갱신하지 않는다. 별도 테이블에 insert만 한다."
+    },
+    {
+      "name": "Insight",
+      "purpose": "돌아보기에서 나온 고칠 점 한 줄, 다음 계획으로 전달 (카드4)",
+      "columns": [
+        { "name": "id", "type": "string(cuid)", "pk": true },
+        { "name": "note", "type": "string" },
+        { "name": "planId", "type": "string|null", "fk": "Plan.id", "note": "이 결론을 반영할(주로 다음) 계획" },
+        { "name": "carriedToPlanId", "type": "string|null", "note": "예비 필드, 현재 버전은 planId로 대상 계획을 직접 표시" },
+        { "name": "createdAt", "type": "datetime" }
+      ]
+    }
+  ],
+  "aggregationRules": {
+    "scope": "planId가 주어지면 그 계획에 딸리고 deletedAt이 null인 Todo만 대상, 없으면 전체",
+    "planCount": "대상 Todo 개수",
+    "doneCount": "대상 중 status='done' 개수",
+    "overdueCount": "대상 중 status!='done' 이고 dueDate < 오늘(Asia/Seoul) 인 개수. 완료된 것은 지연으로 세지 않는다.",
+    "blockedCount": "대상 중 ExecutionLog.blockerReason이 하나라도 비어있지 않은 Todo 개수 (distinct)",
+    "estimatedTotal": "대상 Todo.estimatedMinutes 합계",
+    "actualTotal": "대상 Todo에 딸린 ExecutionLog.actualMinutes 합계",
+    "diff": "actualTotal - estimatedTotal, 대상이 없으면 0"
+  }
+}
